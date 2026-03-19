@@ -53,30 +53,19 @@
         const btn = document.getElementById('payButton');
         const sound = document.getElementById('paymentSound');
 
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            
+        function playSound() {
             sound.pause();
             sound.currentTime = 0;
             
-            let playPromise = sound.play();
+            const playPromise = sound.play();
             
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
+                    console.log('Браузер заблокировал звук, используем Web Audio');
                     try {
                         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        if (audioCtx.state === 'suspended') {
-                            audioCtx.resume().then(() => {
-                                const osc = audioCtx.createOscillator();
-                                const gainNode = audioCtx.createGain();
-                                osc.type = 'sine';
-                                osc.frequency.value = 880;
-                                gainNode.gain.value = 0.2;
-                                osc.connect(gainNode).connect(audioCtx.destination);
-                                osc.start();
-                                osc.stop(audioCtx.currentTime + 0.1);
-                            }).catch(() => {});
-                        } else {
+                        
+                        const playWebAudio = () => {
                             const osc = audioCtx.createOscillator();
                             const gainNode = audioCtx.createGain();
                             osc.type = 'sine';
@@ -84,18 +73,36 @@
                             gainNode.gain.value = 0.2;
                             osc.connect(gainNode).connect(audioCtx.destination);
                             osc.start();
-                            osc.stop(audioCtx.currentTime + 0.1);
+                            osc.stop(audioCtx.currentTime + 0.15);
+                        };
+
+                        if (audioCtx.state === 'suspended') {
+                            audioCtx.resume().then(playWebAudio).catch(() => {});
+                        } else {
+                            playWebAudio();
                         }
-                    } catch (webAudioErr) {}
+                    } catch (webAudioErr) {
+                        console.log('Web Audio API не сработал');
+                    }
                 });
             }
             
             if (window.navigator && window.navigator.vibrate) {
-                window.navigator.vibrate(10);
+                window.navigator.vibrate(15);
             }
+        }
+
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            playSound();
         });
 
-        btn.addEventListener('touchstart', (e) => {
+        btn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            playSound();
+        }, { passive: false });
+
+        btn.addEventListener('touchend', function(e) {
             e.preventDefault();
         }, { passive: false });
     </script>
